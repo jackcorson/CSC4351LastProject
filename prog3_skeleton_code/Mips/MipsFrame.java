@@ -11,29 +11,35 @@ import Util.BoolList;
 import java.util.Hashtable;
 
 public class MipsFrame extends Frame {
-
   private int count = 0;
-  public Frame newFrame(String name, Util.BoolList formals) {
+  private static final int wordSize = 4;
+  private int offset = 0;
+  
+  public MipsFrame() {}
+  
+  private MipsFrame(Label n, BoolList f) {
+    name = n;
+    formals = allocFormals(0, f);
+  }
+  
+  @Override
+  public Frame newFrame(Symbol name, BoolList formals) {
     Label label;
     if (name == null)
       label = new Label();
     else if (this.name != null)
-      label = new Label(this.name + "." + name + "." + count++);
+      label = new Label(this.name + "." + name.toString() + "." + count++);
     else
-      label = new Label(name);
+      label = new Label(name.toString());
     return new MipsFrame(label, formals);
   }
 
-  public MipsFrame() {}
-  private MipsFrame(Label n, Util.BoolList f) {
-    name = n;
-    formals = allocFormals(0, f);
+  @Override
+  public int wordSize() { 
+    return wordSize; 
   }
 
-  private static final int wordSize = 4;
-  public int wordSize() { return wordSize; }
-
-  private int offset = 0;
+  @Override
   public Access allocLocal(boolean escape) {
     if (escape) {
       offset -= wordSize;
@@ -42,7 +48,23 @@ public class MipsFrame extends Frame {
       return new InReg(new Temp());
   }
 
-  private AccessList allocFormals(int offset, Util.BoolList formals) {
+  public Access allocLocalWithSize(boolean escape, int size) {
+    if (escape) {
+      // Align offset based on size
+      if (size > 4) {
+        offset = (offset - 7) & ~7;  // 8-byte alignment for long long
+      } else if (size > 2) {
+        offset = (offset - 3) & ~3;  // 4-byte alignment for int
+      } else if (size > 1) {
+        offset = (offset - 1) & ~1;  // 2-byte alignment for short
+      }
+      offset -= size;
+      return new InFrame(offset);
+    } else
+      return new InReg(new Temp());
+  }
+
+  private AccessList allocFormals(int offset, BoolList formals) {
     if (formals == null)
       return null;
     Access a;
@@ -86,6 +108,7 @@ public class MipsFrame extends Frame {
   static final Temp FP = new Temp(); // virtual frame pointer (eliminated)
   static final Temp S8 = new Temp(); // actual frame pointer
   static final Temp RA = new Temp(); // return address
+  static final Temp RV = new Temp(); // return value
 
   public Temp FP() { return FP; }
   public Temp RV() { return V0; }
@@ -288,8 +311,22 @@ public class MipsFrame extends Frame {
     return new Tree.SEQ(body, move);
   }
 
-    @Override
-    public Frame newFrame(Symbol name, BoolList formals) {
-        throw new UnsupportedOperationException("Not supported yet.");
+  @Override
+  public Access allocGlobal(Label label, int size) {
+    return new InFrame(0, label, size);  // Pass size to InFrame
+  }
+
+  @Override
+  public String data(Label label, int size) {
+    // Determine alignment based on size
+    int alignment = 2;  // Default 4-byte alignment
+    if (size > 4) {
+      alignment = 3;  // 8-byte alignment for long long
     }
+    
+    return "\t.data\n" +
+           "\t.align " + alignment + "\n" +
+           label.toString() + ":\n" +
+           "\t.space " + size + "\n";
+  }
 }

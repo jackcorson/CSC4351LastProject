@@ -3,9 +3,10 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class SeqExp extends Exp {
-    public List<Exp> list;
+    public ExpList list;
 
-    public SeqExp(List<Exp> l) {
+    public SeqExp(int p, ExpList l) {
+        pos = p;
         list = l;
     }
 

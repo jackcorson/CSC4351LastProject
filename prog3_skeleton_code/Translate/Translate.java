@@ -4,13 +4,18 @@ import Tree.BINOP;
 import Tree.CJUMP;
 import Temp.Temp;
 import Temp.Label;
+import java.util.HashMap;
 
 public class Translate {
   public Frame.Frame frame;
+  private Frag frags;
+  private HashMap<Symbol, Access> globals = new HashMap<>();
+  private Level currentLevel;  // Add current level tracking
+  
   public Translate(Frame.Frame f) {
     frame = f;
+    currentLevel = new Level(frame);  // Create initial level
   }
-  private Frag frags;
   public void procEntryExit(Level level, Exp body) {
     Frame.Frame myframe = level.frame;
     Tree.Exp bodyExp = body.unEx();
@@ -92,7 +97,23 @@ public class Translate {
   }
 
   public Exp SimpleVar(Access access, Level level) {
-    return Error();
+    if (access == null) return Error();
+    Tree.Exp fp = TEMP(frame.FP());
+    return new Ex(MEM(access.acc.exp(fp)));
+  }
+
+  public Exp GlobalVar(Symbol name, int size) {
+    Access access = globals.get(name);
+    if (access == null) {
+      Label label = new Label(name.toString());
+      access = new Access(currentLevel, frame.allocGlobal(label, size));
+      globals.put(name, access);
+      // Add to data segment
+      DataFrag frag = new DataFrag(frame.data(label, size));
+      frag.next = frags;
+      frags = frag;
+    }
+    return new Ex(MEM(NAME(access.acc.name)));
   }
 
   public Exp FieldVar(Exp record, int index) {
@@ -146,7 +167,18 @@ public class Translate {
   }
 
   public Exp OpExp(int op, Exp left, Exp right) {
-    return Error();
+    Tree.Exp l = left.unEx();
+    Tree.Exp r = right.unEx();
+    if (l == null || r == null) return Error();
+    
+    switch(op) {
+      case BINOP.PLUS: case BINOP.MINUS: case BINOP.MUL: case BINOP.DIV:
+      case BINOP.AND: case BINOP.OR: case BINOP.LSHIFT: case BINOP.RSHIFT:
+      case BINOP.ARSHIFT: case BINOP.XOR:
+        return new Ex(BINOP(op, l, r));
+      default:
+        return new RelCx(op, l, r);
+    }
   }
 
   public Exp StrOpExp(int op, Exp left, Exp right) {
@@ -166,7 +198,26 @@ public class Translate {
   }
 
   public Exp IfExp(Exp cc, Exp aa, Exp bb) {
-    return Error();
+    Label t = new Label();
+    Label f = new Label();
+    Label join = new Label();
+    Temp r = new Temp();
+    
+    if (bb == null) {  // if-then
+      return new Nx(SEQ(cc.unCx(t,f),
+                   SEQ(LABEL(t),
+                   SEQ(aa.unNx(),
+                   SEQ(LABEL(f),
+                       null)))));
+    } else {  // if-then-else
+      return new Nx(SEQ(cc.unCx(t,f),
+                   SEQ(LABEL(t),
+                   SEQ(aa.unNx(),
+                   SEQ(JUMP(join),
+                   SEQ(LABEL(f),
+                   SEQ(bb.unNx(),
+                       LABEL(join))))))));
+    }
   }
 
   public Exp WhileExp(Exp test, Exp body, Label done) {
@@ -174,7 +225,18 @@ public class Translate {
   }
 
   public Exp ForExp(Access i, Exp lo, Exp hi, Exp body, Label done) {
-    return Error();
+    Label test = new Label();
+    Label incr = new Label();
+    
+    return new Nx(SEQ(
+      MOVE(i.acc.exp(TEMP(frame.FP())), lo.unEx()),
+      SEQ(LABEL(test),
+        SEQ(CJUMP(CJUMP.LE, i.acc.exp(TEMP(frame.FP())), hi.unEx(), incr, done),
+          SEQ(LABEL(incr),
+            SEQ(body.unNx(),
+              SEQ(MOVE(i.acc.exp(TEMP(frame.FP())), 
+                    BINOP(BINOP.PLUS, i.acc.exp(TEMP(frame.FP())), CONST(1))),
+                  JUMP(test))))))));
   }
 
   public Exp BreakExp(Label done) {
@@ -199,5 +261,15 @@ public class Translate {
 
   public Exp FunctionDec() {
     return new Nx(null);
+  }
+
+  public void addCRuntime() {
+    // Add C runtime initialization
+    DataFrag frag = new DataFrag("\t.data\n" +
+                                "\t.align 2\n" +
+                                "_framesize:\n" +
+                                "\t.word 0\n");
+    frag.next = frags;
+    frags = frag;
   }
 }

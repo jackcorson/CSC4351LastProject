@@ -61,6 +61,36 @@ public class Codegen {
   }
 
   void munchStm(Tree.MOVE s) {
+    Tree.Exp dst = s.dst;
+    Tree.Exp src = s.src;
+    
+    if (dst instanceof Tree.MEM) {
+      Tree.MEM mem = (Tree.MEM)dst;
+      Temp srcTemp = munchExp(src);
+      
+      // Handle different sized stores
+      switch(dst.size) {
+        case 1: // byte
+          emit(OPER("sb `s0 0(`s1)", null, L(srcTemp, L(munchExp(mem.exp)))));
+          break;
+        case 2: // short
+          emit(OPER("sh `s0 0(`s1)", null, L(srcTemp, L(munchExp(mem.exp)))));
+          break;
+        case 4: // int/pointer
+          emit(OPER("sw `s0 0(`s1)", null, L(srcTemp, L(munchExp(mem.exp)))));
+          break;
+        case 8: // long long
+          Temp high = new Temp();
+          Temp low = new Temp();
+          emit(OPER("srl `d0 `s0 32", L(high), L(srcTemp)));
+          emit(OPER("and `d0 `s0 0xFFFFFFFF", L(low), L(srcTemp)));
+          emit(OPER("sw `s0 0(`s1)", null, L(high, L(munchExp(mem.exp)))));
+          emit(OPER("sw `s0 4(`s1)", null, L(low, L(munchExp(mem.exp)))));
+          break;
+      }
+    } else if (dst instanceof Tree.TEMP) {
+      emit(MOVE("move `d0 `s0", ((Tree.TEMP)dst).temp, munchExp(src)));
+    }
   }
 
   void munchStm(Tree.UEXP s) {
@@ -68,6 +98,7 @@ public class Codegen {
   }
 
   void munchStm(Tree.JUMP s) {
+    emit(OPER("j " + s.targets.head.toString(), null, null, s.targets));
   }
 
   private static String[] CJUMP = new String[10];
@@ -85,9 +116,14 @@ public class Codegen {
   }
 
   void munchStm(Tree.CJUMP s) {
+    Temp left = munchExp(s.left);
+    Temp right = munchExp(s.right);
+    emit(OPER(CJUMP[s.relop] + " `s0 `s1 " + s.iftrue,
+              null, L(left, L(right)), new LabelList(s.iftrue, new LabelList(s.iffalse, null))));
   }
 
   void munchStm(Tree.LABEL l) {
+    emit(new Assem.LABEL(l.label.toString() + ":", l.label));
   }
 
   Temp munchExp(Tree.Exp s) {
@@ -108,11 +144,15 @@ public class Codegen {
   }
 
   Temp munchExp(Tree.CONST e) {
-    return frame.ZERO;
+    Temp result = new Temp();
+    emit(OPER("li `d0 " + e.value, L(result), null));
+    return result;
   }
 
   Temp munchExp(Tree.NAME e) {
-    return frame.ZERO;
+    Temp result = new Temp();
+    emit(OPER("la `d0 " + e.label.toString(), L(result), null));
+    return result;
   }
 
   Temp munchExp(Tree.TEMP e) {
@@ -151,15 +191,65 @@ public class Codegen {
   }
 
   Temp munchExp(Tree.BINOP e) {
-    return frame.ZERO;
+    Temp result = new Temp();
+    Temp left = munchExp(e.left);
+    Temp right = munchExp(e.right);
+    
+    if (e.right instanceof Tree.CONST) {
+      int value = ((Tree.CONST)e.right).value;
+      switch(e.binop) {
+        case Tree.BINOP.PLUS:
+          emit(OPER("addi `d0 `s0 " + value, L(result), L(left)));
+          break;
+        case Tree.BINOP.MINUS:
+          emit(OPER("addi `d0 `s0 " + (-value), L(result), L(left)));
+          break;
+        case Tree.BINOP.MUL:
+          emit(OPER("mul `d0 `s0 " + value, L(result), L(left)));
+          break;
+        case Tree.BINOP.AND:
+          emit(OPER("andi `d0 `s0 " + value, L(result), L(left)));
+          break;
+        default:
+          emit(OPER(BINOP[e.binop] + " `d0 `s0 `s1", L(result), L(left, L(right))));
+      }
+    } else {
+      emit(OPER(BINOP[e.binop] + " `d0 `s0 `s1", L(result), L(left, L(right))));
+    }
+    return result;
   }
 
   Temp munchExp(Tree.MEM e) {
-    return frame.ZERO;
+    Temp result = new Temp();
+    
+    // Handle different sized loads
+    switch(e.size) {
+      case 1: // byte
+        emit(OPER("lb `d0 0(`s0)", L(result), L(munchExp(e.exp))));
+        break;
+      case 2: // short
+        emit(OPER("lh `d0 0(`s0)", L(result), L(munchExp(e.exp))));
+        break;
+      case 4: // int/pointer
+        emit(OPER("lw `d0 0(`s0)", L(result), L(munchExp(e.exp))));
+        break;
+      case 8: // long long
+        Temp high = new Temp();
+        Temp low = new Temp();
+        emit(OPER("lw `d0 0(`s0)", L(high), L(munchExp(e.exp))));
+        emit(OPER("lw `d0 4(`s0)", L(low), L(munchExp(e.exp))));
+        emit(OPER("sll `d0 `s0 32", L(result), L(high)));
+        emit(OPER("or `d0 `s0 `s1", L(result), L(result, L(low))));
+        break;
+    }
+    return result;
   }
 
   Temp munchExp(Tree.CALL s) {
-    return frame.ZERO;
+    TempList l = munchArgs(0, s.args);
+    emit(OPER("jal " + ((Tree.NAME)s.func).label.toString(),
+              L(frame.RA, L(frame.RV)), l));
+    return frame.RV;
   }
 
   private TempList munchArgs(int i, Tree.ExpList args) {
@@ -169,22 +259,22 @@ public class Codegen {
     if (i > frame.maxArgs)
       frame.maxArgs = i;
     switch (i) {
-    case 0:
-      emit(MOVE("move `d0 `s0", frame.A0, src));
-      break;
-    case 1:
-      emit(MOVE("move `d0 `s0", frame.A1, src));
-      break;
-    case 2:
-      emit(MOVE("move `d0 `s0", frame.A2, src));
-      break;
-    case 3:
-      emit(MOVE("move `d0 `s0", frame.A3, src));
-      break;
-    default:
-      emit(OPER("sw `s0 " + (i-1)*frame.wordSize() + "(`s1)",
-		null, L(src, L(frame.SP))));
-      break;
+      case 0:
+        emit(MOVE("move `d0 `s0", frame.A0, src));
+        break;
+      case 1:
+        emit(MOVE("move `d0 `s0", frame.A1, src));
+        break;
+      case 2:
+        emit(MOVE("move `d0 `s0", frame.A2, src));
+        break;
+      case 3:
+        emit(MOVE("move `d0 `s0", frame.A3, src));
+        break;
+      default:
+        emit(OPER("sw `s0 " + (i-1)*frame.wordSize() + "(`s1)",
+                  null, L(src, L(frame.SP))));
+        break;
     }
     return L(src, munchArgs(i+1, args.tail));
   }
