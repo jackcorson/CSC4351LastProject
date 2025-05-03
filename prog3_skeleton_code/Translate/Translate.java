@@ -117,19 +117,36 @@ public class Translate {
   }
 
   public Exp FieldVar(Exp record, int index) {
-    return Error();
+    Label badOne = frame.badPtr();
+    Label okOne = new Label();
+    Temp r = new Temp();
+    index = index * frame.wordSize();
+    return new Ex(ESEQ(SEQ(MOVE(TEMP(r), record.unEx()),
+    SEQ(CJUMP(CJUMP.EQ, TEMP(r), CONST(0), badOne, okOne), LABEL(okOne))),
+    MEM(BINOP(BINOP.PLUS, TEMP(r), CONST(index)))));
   }
 
   public Exp SubscriptVar(Exp array, Exp index) {
-    return Error();
+    Label badOne = frame.badSub();
+    Label checking = new Label();
+    Label okOne = new Label();
+    Temp a = new Temp();
+    Temp i = new Temp();
+    int size = frame.wordSize();
+
+    return new Ex(ESEQ(SEQ(MOVE(TEMP(a), array.unEx()),
+    SEQ(MOVE(TEMP(i), index.unEx()), SEQ(CJUMP(CJUMP.LT, TEMP(i), CONST(0), badOne, checking),
+    SEQ(LABEL(checking), SEQ(CJUMP(CJUMP.GT, TEMP(i), MEM(BINOP(BINOP.PLUS, TEMP(a), CONST(-size))),
+    badOne, okOne), LABEL(okOne)))))), MEM(BINOP(BINOP.PLUS, TEMP(a), BINOP(BINOP.MUL, TEMP(i),
+    CONST(size))))));
   }
 
   public Exp NilExp() {
-    return Error();
+    return new Ex(CONST(0));
   }
 
   public Exp IntExp(int value) {
-    return Error();
+    return new Ex(CONST(value));
   }
 
   private java.util.Hashtable strings = new java.util.Hashtable();
@@ -182,19 +199,71 @@ public class Translate {
   }
 
   public Exp StrOpExp(int op, Exp left, Exp right) {
-    return Error();
+    Tree.Exp cmp = frame.externalCall("strcmp", ExpList(left.unEx(),
+    ExpList(right.unEx())));
+
+    switch(op)
+    {
+      case Absyn.OpExp.GT:
+        return new RelCx(CJUMP.GT, cmp, CONST(0));
+      case Absyn.OpExp.LT:
+        return new RelCx(CJUMP.LT, cmp, CONST(0));
+      case Absyn.OpExp.GE:
+        return new RelCx(CJUMP.GE, cmp, CONST(0));
+      case Absyn.OpExp.LE:
+        return new RelCx(CJUMP.LE, cmp, CONST(0));
+      case Absyn.OpExp.EQ:
+        return new RelCx(CJUMP.EQ, cmp, CONST(0));
+      case Absyn.OpExp.NEQ:
+        return new RelCx(CJUMP.NE, cmp, CONST(0));
+      default:
+        throw new Error("Translate.StrOpExp");
+      }
   }
 
   public Exp RecordExp(ExpList init) {
-    return Error();
+    int size = 0;
+    for(ExpList exp = init; exp != null; exp = exp.tail, size++){}
+    
+    Temp temp = new Temp();
+    return new Ex(ESEQ(SEQ(MOVE(TEMP(temp), frame.externalCall("allocRecord",
+     ExpList(CONST(size)))), initRecord(temp, 0, init, frame.wordSize())), TEMP(temp)));
+
+  }
+
+  private Tree.Stm initRecord(Temp r, int i, ExpList init, int wordSize) {
+    if (init == null)
+      return null;
+    return
+      SEQ(MOVE(MEM(BINOP(BINOP.PLUS, TEMP(r), CONST(i))), init.head.unEx()),
+	  initRecord(r, i + wordSize, init.tail, wordSize));
   }
 
   public Exp SeqExp(ExpList e) {
-    return Error();
+    if (e == null)
+    {
+      return new Nx(null);
+    }
+
+    Tree.Stm stem = null;
+    while(e.tail != null)
+    {
+      e = e.tail;
+      stem = SEQ(stem, e.head.unNx());
+    }
+
+    Tree.Exp result = e.head.unEx();
+    if(result == null)
+    {
+      return new Nx(SEQ(stem, e.head.unNx()));
+    }
+
+    return new Ex(ESEQ(stem, result));
+
   }
 
   public Exp AssignExp(Exp lhs, Exp rhs) {
-    return Error();
+    return new Nx(MOVE(lhs.unEx(), rhs.unEx()));
   }
 
   public Exp IfExp(Exp cc, Exp aa, Exp bb) {
@@ -221,7 +290,11 @@ public class Translate {
   }
 
   public Exp WhileExp(Exp test, Exp body, Label done) {
-    return Error();
+    Label c = new Label();
+    Label b = new Label();
+    return new Nx(SEQ(SEQ(SEQ(LABEL(c), test.unCx(b, done)),
+              SEQ(SEQ(LABEL(b), body.unNx()), JUMP(c))),
+              LABEL(done)));
   }
 
   public Exp ForExp(Access i, Exp lo, Exp hi, Exp body, Label done) {
@@ -240,19 +313,19 @@ public class Translate {
   }
 
   public Exp BreakExp(Label done) {
-    return Error();
+    return new Nx(JUMP(done));
   }
 
-  public Exp LetExp(ExpList lets, Exp body) {
-    return Error();
-  }
+  // public Exp LetExp(ExpList lets, Exp body) {
+  //   return Error();
+  // }
 
-  public Exp ArrayExp(Exp size, Exp init) {
-    return Error();
-  }
+  // public Exp ArrayExp(Exp size, Exp init) {
+  //   return Error();
+  // }
 
   public Exp VarDec(Access a, Exp init) {
-    return Error();
+    return new Nx(MOVE(a.acc.exp(TEMP(a.home.frame.FP())), init.unEx()));
   }
 
   public Exp TypeDec() {

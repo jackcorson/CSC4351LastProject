@@ -6,5 +6,10 @@ public class DeclarationList extends Exp{
     pos = p;
     list = l;
   }
+  @Override
+  public void accept(Visitor v) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'accept'");
+  }
 
 }

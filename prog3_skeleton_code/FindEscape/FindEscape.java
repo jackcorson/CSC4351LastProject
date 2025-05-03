@@ -1,47 +1,42 @@
 package FindEscape;
 
-import Absyn.*;
-import Symbol.Symbol;
-import Symbol.Table;
-import Absyn.Exp;
-import Absyn.Var;
-import Absyn.Dec;
-import Absyn.VarExp;
+import Absyn.ArrayExp;
+import Absyn.AssignExp;
 import Absyn.CallExp;
+import Absyn.Dec;
+import Absyn.Efield;
+import Absyn.Exp;
+import Absyn.FieldList;
+import Absyn.FieldVar;
+import Absyn.ForExp;
+import Absyn.FunctionDec;
+import Absyn.IfExp;
+import Absyn.LetExp;
 import Absyn.OpExp;
 import Absyn.RecordExp;
 import Absyn.SeqExp;
-import Absyn.AssignExp;
-import Absyn.IfExp;
-import Absyn.WhileExp;
-import Absyn.ForExp;
-import Absyn.LetExp;
-import Absyn.ArrayExp;
 import Absyn.SimpleVar;
-import Absyn.FieldVar;
 import Absyn.SubscriptVar;
-import Absyn.VarDec;
-import Absyn.FunctionDec;
-import Absyn.FieldList;
-import Absyn.Efield;
 import Absyn.UnaryExpression;
+import Absyn.Var;
+import Absyn.VarDec;
+import Absyn.VarExp;
+import Absyn.WhileExp;
+import Symbol.Table;
 import Types.QUALIFIED;
-import java.util.ArrayList;
-import java.util.List;
 
 public class FindEscape {
     private Table varEscape;
     private Table typeEnv; 
     private int depth;
 
+    public void findEscape(Exp exp) {
+        traverseExp(depth, exp);
+    }
     public FindEscape() {
         varEscape = new Table();
         typeEnv = new Table();  
         depth = 0;
-    }
-
-    public void findEscape(Exp exp) {
-        traverseExp(depth, exp);
     }
 
     private void traverseExp(int depth, Exp exp) {

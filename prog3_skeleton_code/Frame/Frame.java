@@ -18,8 +18,4 @@ public abstract class Frame implements Temp.TempMap {
   abstract public String tempMap(Temp.Temp temp);
   abstract public Assem.InstrList codegen(Tree.Stm stm);
   abstract public Temp.TempList registers();
-  
-  // New methods for C support
-  abstract public Access allocGlobal(Temp.Label label, int size);
-  abstract public String data(Temp.Label label, int size);
 }

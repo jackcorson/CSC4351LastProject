@@ -1,5 +1,5 @@
 package Translate;
-import Absyn.Exp;
+import Absyn.DeclarationList;
 import Parse.Parse;
 import Semant.Semant;
 
@@ -14,7 +14,7 @@ public class Main {
       Parse parse = new Parse(filename);
       Translate translate = new Translate(frame);
       Semant semant = new Semant(translate, parse.errorMsg);
-      Frag frags = semant.transProg((Exp)parse.absyn);
+      Frag frags = semant.transProg((DeclarationList)parse.absyn);
       if (!parse.errorMsg.anyErrors) {
 	java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
 	Tree.Print printer = new Tree.Print(writer);

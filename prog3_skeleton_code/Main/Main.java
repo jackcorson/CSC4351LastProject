@@ -68,53 +68,27 @@ class Main {
   public static void main(String args[]) throws java.io.IOException {
     for (int i = 0; i < args.length; ++i) {
       String src = args[i];
-      System.out.println("Processing file: " + src);
-      
-      if (src.endsWith(".c") || src.endsWith(".tig")) {
+      if (src.endsWith(".tig")) {
 	if (args.length > 1)
 	  System.out.println("***Compiling: " + src);
-	
 	Parse.Parse parse = new Parse.Parse(src);
-	System.out.println("Parse complete. Any errors: " + parse.errorMsg.anyErrors);
-	System.out.println("AST: " + parse.absyn);
-	
-	String dst = src.substring(0, src.lastIndexOf(".")) + ".s";
+	String dst = src.substring(0, src.lastIndexOf(".tig")) + ".s";
 	Translate.Translate translate = new Translate.Translate(frame);
 	Semant.Semant semant = new Semant.Semant(translate, parse.errorMsg);
-	
-	// Add runtime support for C
-	if (src.endsWith(".c")) {
-	  translate.addCRuntime();
-	}
-	
 	Translate.Frag frags = semant.transProg((Exp) parse.absyn);
-	System.out.println("Translation complete. Fragments: " + frags);
-	
 	if (!parse.errorMsg.anyErrors) {
 	  java.io.PrintWriter out =
 	    new java.io.PrintWriter(new java.io.FileOutputStream(dst));
-	  
-	  // Output C runtime initialization for C files
-	  if (src.endsWith(".c")) {
-	    out.println("\t.text");
-	    out.println("\t.globl main");
-	    out.println("main:");
-	    out.println("\tjal tigermain");
-	    out.println("\tmove $v0, $zero");
-	    out.println("\tjr $ra");
-	    out.println();
-	  }
-	  
 	  for(Translate.Frag f = frags; f!=null; f=f.next)
 	    if (f instanceof Translate.ProcFrag)
 	      emitProc(out, (Translate.ProcFrag)f);
 	    else if (f instanceof Translate.DataFrag)
 	      out.println(((Translate.DataFrag)f).data);
 	  out.close();
-	  System.out.println("Generated output file: " + dst);
 	}
       } else
-	System.err.println("File extension is not \".c\" or \".tig\": ignoring " + src);
+	System.err.println
+	  ("File extension is not \".tig\": ignoring " + src);
     }
   }
 
