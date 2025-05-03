@@ -1,5 +1,7 @@
 package Main;
 import Absyn.*;
+import Mips.MipsFrame;
+import Temp.TempMap;
 
 class Main {
 
@@ -8,7 +10,7 @@ class Main {
   static Assem.InstrList codegen(Frame.Frame f, Tree.StmList stms) {
     Assem.InstrList first = null, last = null;
     for (Tree.StmList s = stms; s != null; s = s.tail) {
-      Assem.InstrList i = f.codegen(s.head);
+      Assem.InstrList i = ((MipsFrame) f).codegen(s.head);
       if (last == null) {
 	if (first != null)
 	  throw new Error("Main.codegen");
@@ -27,7 +29,7 @@ class Main {
     java.io.PrintWriter debug = 
       /* new java.io.PrintWriter(new NullOutputStream()); */
       out;
-    Temp.TempMap tempmap = new Temp.CombineMap(f.frame, new Temp.DefaultMap());
+    Temp.TempMap tempmap = new Temp.CombineMap((TempMap) f.frame, new Temp.DefaultMap());
     Tree.Print print = new Tree.Print(debug, tempmap);
     debug.println("PROCEDURE " + f.frame.name);
     Assem.InstrList instrs = null;
@@ -56,7 +58,7 @@ class Main {
     alloc.show(debug, tempmap);
     debug.println("# Code: ");
     tempmap = new Temp.CombineMap(alloc, new Temp.DefaultMap());
-    Frame.Proc proc = f.frame.procEntryExit3(alloc.instrs());
+    Frame.Proc proc = ((MipsFrame) f.frame).procEntryExit3(alloc.instrs());
     out.println(proc.prologue);
     for (Assem.InstrList p = proc.body; p != null; p = p.tail)
       out.println(p.head.format(tempmap));

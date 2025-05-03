@@ -1,11 +1,10 @@
 package Frame;
-import Temp.*;
-import Tree.Exp;
-import Tree.Stm;
 import Symbol.Symbol;
+import Temp.*;
 import Util.BoolList;
 
 public interface Frame {
+  String name = null;
   public Temp FP();
   public Temp RV();
   public Tree.Exp externalCall(String func, Tree.ExpList args);

@@ -319,13 +319,21 @@ public class Translate {
     return new Nx(JUMP(done));
   }
 
-  // public Exp LetExp(ExpList lets, Exp body) {
-  //   return Error();
-  // }
+  public Exp LetExp(ExpList lets, Exp body) {
+    Tree.Stm stm = null;
+    for (ExpList e = lets; e != null; e = e.tail)
+      stm = SEQ(stm, e.head.unNx());
+    Tree.Exp result = body.unEx();
+    if (result == null)
+      return new Nx(SEQ(stm, body.unNx()));
+    return new Ex(ESEQ(stm, result));
+  }
 
-  // public Exp ArrayExp(Exp size, Exp init) {
-  //   return Error();
-  // }
+  public Exp ArrayExp(Exp size, Exp init) {
+    return new Ex
+      (frame.externalCall("initArray",
+			  ExpList(size.unEx(), ExpList(init.unEx()))));
+  }
 
   public Exp VarDec(TranslateAccess a, Exp init) {
     return new Nx(MOVE(a.exp(TEMP(frame.FP())), init.unEx()));
