@@ -1,38 +1,38 @@
 package Translate;
+import Frame.*;
 import Symbol.Symbol;
 import Temp.Label;
 import Util.BoolList;
 
 public class Level {
-  Level parent;
-  Frame.Frame frame;		// not public!
+  public Frame frame;
+  public Level parent;
   public AccessList formals;
-  public AccessList frameFormals;
-  public Level(Level parent, Symbol name, BoolList formals) {
-    this(parent, name, formals, false);
-  }
-  public Level(Level parent, Symbol name, BoolList formals, boolean leaf) {
-    this.parent = parent;
-    this.frame = parent.frame.newFrame(name, new BoolList(!leaf, formals));
-    frameFormals = allocFormals(this.frame.formals);
-    this.formals = frameFormals.tail;
-  }
-  private AccessList allocFormals(Frame.AccessList formals) {
-    if (formals == null)
-      return null;
-    return new AccessList(new Access(this, formals.head),
-			  allocFormals(formals.tail));
+  private Label name;
+
+  public Level(Frame f) {
+    frame = f;
+    parent = null;
+    formals = null;
+    name = new Label();
   }
 
-  public Level(Frame.Frame f) {
-    frame = f;
+  public Level(Level p, Symbol n, BoolList f) {
+    parent = p;
+    name = new Label(n.toString());
+    frame = p.frame.newFrame(n, f);
+    formals = allocFormals(null);  // Initialize with empty formals
+  }
+
+  private AccessList allocFormals(AccessList formals) {
+    return formals;  // For now, just return the passed formals
   }
 
   public Label name() {
-    return frame.name;
+    return name;
   }
 
-  public Access allocLocal(boolean escape) {
-    return new Access(this, frame.allocLocal(escape));
+  public TranslateAccess allocLocal(boolean escape) {
+    return new TranslateAccess(this, frame.allocLocal(escape));
   }
 }

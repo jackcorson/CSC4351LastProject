@@ -1,13 +1,17 @@
 package Absyn;
-import java.util.ArrayList;
-
 import Symbol.Symbol;
-public class ArrayType extends Decl{
-    // Can either be empty
-    public Exp size;
-    public ArrayType(int p, Exp s) {
-        pos=p;
-        size=s;
+
+public class ArrayType extends Type {
+    public Type element;
+    public Symbol typ;
+
+    public ArrayType(Type e, Symbol t, int p) {
+        super(p);
+        element = e;
+        typ = t;
     }
 
+    public void accept(Visitor v) {
+        v.visit(this);
+    }
 }

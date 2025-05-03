@@ -1,9 +1,10 @@
 package Translate;
 
 public class AccessList {
-  public Access head;
+  public TranslateAccess head;
   public AccessList tail;
-  AccessList(Access h, AccessList t) {
+  
+  AccessList(TranslateAccess h, AccessList t) {
     head = h;
     tail = t;
   }

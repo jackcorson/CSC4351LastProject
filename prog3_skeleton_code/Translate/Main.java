@@ -1,35 +1,34 @@
 package Translate;
-import Absyn.DeclarationList;
-import Parse.Parse;
-import Semant.Semant;
+import Frame.*;
+import Symbol.Symbol;
+import java.io.*;
 
-public class Main {
-  static Frame.Frame frame = new Mips.MipsFrame();
+class Main {
+  static Frame frame = new Mips.MipsFrame();
 
-  public static void main(String argv[])  {
-    for (int i = 0; i < argv.length; ++i) {
-      String filename = argv[i];
-      if (argv.length > 1)
-	System.out.println("***Processing: " + filename);
-      Parse parse = new Parse(filename);
-      Translate translate = new Translate(frame);
-      Semant semant = new Semant(translate, parse.errorMsg);
-      Frag frags = semant.transProg((DeclarationList)parse.absyn);
-      if (!parse.errorMsg.anyErrors) {
-	java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
-	Tree.Print printer = new Tree.Print(writer);
-	for (Frag f = frags; f != null; f = f.next)
-	  if (f instanceof DataFrag) {
-	    DataFrag d = (DataFrag)f;
-	    writer.println(d.data);
-	  } else {
-	    ProcFrag p = (ProcFrag)f;
-	    writer.println(p.frame.name + ":");
-	    if (p.body != null)
-	      printer.prStm(p.body);
-	  }
-	writer.flush();
-      }
+  static void prStm(java.io.PrintWriter writer, Tree.Stm stm, int d) {
+    for (int i = 0; i < d; i++)
+      writer.print(' ');
+    writer.println(stm.toString());
+  }
+
+  static void prFrag(java.io.PrintWriter writer, Frag f) {
+    if (f == null)
+      return;
+    if (f instanceof ProcFrag) {
+      ProcFrag p = (ProcFrag)f;
+      writer.println("PROC " + p.frame.name());
+      Tree.Print print = new Tree.Print(writer);
+      print.prStm(p.body);
+      writer.println();
     }
+    prFrag(writer, f.next);
+  }
+
+  public static void main(String args[]) throws java.io.IOException {
+    String filename = args[0];
+    PrintWriter writer = new PrintWriter(new FileWriter(filename + ".s"));
+    Translate translate = new Translate(frame);
+    // ... rest of main ...
   }
 }

@@ -12,12 +12,16 @@ public interface Visitor {
     void visit(ForExp v);
     void visit(LetExp v);
     void visit(ArrayExp v);
+    void visit(IntExp v);
+    void visit(IdExp v);
     void visit(SimpleVar v);
     void visit(FieldVar v);
     void visit(SubscriptVar v);
     void visit(VarDec v);
     void visit(FunctionDec v);
-    void visit(IntExp v);
+    void visit(TypeDec v);
+    void visit(ArrayType v);
+    void visit(NameType v);
     void visit(Postfix v);
     void visit(Id v);
     void visit(ArgumentList v);
@@ -29,7 +33,6 @@ public interface Visitor {
     void visit(EmptyExpression v);
     void visit(ExpList v);
     void visit(FuncExpression v);
-    void visit(IdExp v);
     void visit(ParenExpression v);
     void visit(SizeofExpression v);
     void visit(StringLit v);

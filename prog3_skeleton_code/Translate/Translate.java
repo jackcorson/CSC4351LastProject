@@ -1,23 +1,29 @@
 package Translate;
+import Frame.Access;
+import Frame.Frame;
 import Symbol.Symbol;
-import Tree.BINOP;
-import Tree.CJUMP;
-import Temp.Temp;
 import Temp.Label;
+import Temp.Temp;
+import Tree.*;
 import java.util.HashMap;
 
 public class Translate {
-  public Frame.Frame frame;
+  public Frame frame;
   private Frag frags;
-  private HashMap<Symbol, Access> globals = new HashMap<>();
-  private Level currentLevel;  // Add current level tracking
+  private HashMap<Symbol, TranslateAccess> globals = new HashMap<>();
+  private Level currentLevel;
   
-  public Translate(Frame.Frame f) {
-    frame = f;
-    currentLevel = new Level(frame);  // Create initial level
+  public Translate(Frame f) {
+    this.frame = f;
+    currentLevel = new Level(frame);
   }
+
+  public Frame getFrame() {
+    return frame;
+  }
+
   public void procEntryExit(Level level, Exp body) {
-    Frame.Frame myframe = level.frame;
+    Frame myframe = level.frame;
     Tree.Exp bodyExp = body.unEx();
     Tree.Stm bodyStm;
     if (bodyExp != null)
@@ -28,6 +34,7 @@ public class Translate {
     frag.next = frags;
     frags = frag;
   }
+
   public Frag getResult() {
     return frags;
   }
@@ -96,24 +103,25 @@ public class Translate {
     return new Ex(CONST(0));
   }
 
-  public Exp SimpleVar(Access access, Level level) {
+  public Exp SimpleVar(TranslateAccess access, Level level) {
     if (access == null) return Error();
     Tree.Exp fp = TEMP(frame.FP());
-    return new Ex(MEM(access.acc.exp(fp)));
+    return new Ex(MEM(access.exp(fp)));
   }
 
   public Exp GlobalVar(Symbol name, int size) {
-    Access access = globals.get(name);
+    TranslateAccess access = globals.get(name);
     if (access == null) {
       Label label = new Label(name.toString());
-      access = new Access(currentLevel, frame.allocGlobal(label, size));
+      Access frameAccess = frame.allocGlobal(label, size);
+      access = new TranslateAccess(currentLevel, frameAccess);
       globals.put(name, access);
-      // Add to data segment
       DataFrag frag = new DataFrag(frame.data(label, size));
       frag.next = frags;
       frags = frag;
+      return new Ex(frame.data(label, size));
     }
-    return new Ex(MEM(NAME(access.acc.name)));
+    return new Ex(access.exp(new CONST(0)));
   }
 
   public Exp FieldVar(Exp record, int index) {
@@ -150,17 +158,12 @@ public class Translate {
   }
 
   private java.util.Hashtable strings = new java.util.Hashtable();
-  public Exp StringExp(String lit) {
-    String u = lit.intern();
-    Label lab = (Label)strings.get(u);
-    if (lab == null) {
-      lab = new Label();
-      strings.put(u, lab);
-      DataFrag frag = new DataFrag(frame.string(lab, u));
-      frag.next = frags;
-      frags = frag;
-    }
-    return new Ex(NAME(lab));
+  public Exp StringExp(String s) {
+    Label label = new Label();
+    DataFrag frag = new DataFrag(frame.string(label, s));
+    frag.next = frags;
+    frags = frag;
+    return new Ex(frame.string(label, s));
   }
 
   private Tree.Exp CallExp(Symbol f, ExpList args, Level from) {
@@ -297,18 +300,18 @@ public class Translate {
               LABEL(done)));
   }
 
-  public Exp ForExp(Access i, Exp lo, Exp hi, Exp body, Label done) {
+  public Exp ForExp(TranslateAccess i, Exp lo, Exp hi, Exp body, Label done) {
     Label test = new Label();
     Label incr = new Label();
     
     return new Nx(SEQ(
-      MOVE(i.acc.exp(TEMP(frame.FP())), lo.unEx()),
+      MOVE(i.exp(TEMP(frame.FP())), lo.unEx()),
       SEQ(LABEL(test),
-        SEQ(CJUMP(CJUMP.LE, i.acc.exp(TEMP(frame.FP())), hi.unEx(), incr, done),
+        SEQ(CJUMP(CJUMP.LE, i.exp(TEMP(frame.FP())), hi.unEx(), incr, done),
           SEQ(LABEL(incr),
             SEQ(body.unNx(),
-              SEQ(MOVE(i.acc.exp(TEMP(frame.FP())), 
-                    BINOP(BINOP.PLUS, i.acc.exp(TEMP(frame.FP())), CONST(1))),
+              SEQ(MOVE(i.exp(TEMP(frame.FP())), 
+                    BINOP(BINOP.PLUS, i.exp(TEMP(frame.FP())), CONST(1))),
                   JUMP(test))))))));
   }
 
@@ -324,8 +327,8 @@ public class Translate {
   //   return Error();
   // }
 
-  public Exp VarDec(Access a, Exp init) {
-    return new Nx(MOVE(a.acc.exp(TEMP(a.home.frame.FP())), init.unEx()));
+  public Exp VarDec(TranslateAccess a, Exp init) {
+    return new Nx(MOVE(a.exp(TEMP(frame.FP())), init.unEx()));
   }
 
   public Exp TypeDec() {
@@ -337,11 +340,8 @@ public class Translate {
   }
 
   public void addCRuntime() {
-    // Add C runtime initialization
-    DataFrag frag = new DataFrag("\t.data\n" +
-                                "\t.align 2\n" +
-                                "_framesize:\n" +
-                                "\t.word 0\n");
+    Label label = new Label("_framesize");
+    DataFrag frag = new DataFrag(frame.data(label, 4));  // 4 bytes for word size
     frag.next = frags;
     frags = frag;
   }

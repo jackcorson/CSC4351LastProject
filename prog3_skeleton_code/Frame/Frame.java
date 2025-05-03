@@ -1,21 +1,24 @@
 package Frame;
+import Temp.*;
+import Tree.Exp;
+import Tree.Stm;
+import Symbol.Symbol;
+import Util.BoolList;
 
-public abstract class Frame implements Temp.TempMap {
-  public Temp.Label name;
-  public AccessList formals;
-  abstract public Frame newFrame(Symbol.Symbol name, Util.BoolList formals);
-  abstract public Access allocLocal(boolean escape);
-  abstract public Temp.Temp FP();
-  abstract public int wordSize();
-  abstract public Tree.Exp externalCall(String func, Tree.ExpList args);
-  abstract public Temp.Temp RV();
-  abstract public Tree.Stm procEntryExit1(Tree.Stm body);
-  abstract public String string(Temp.Label label, String value);
-  abstract public Temp.Label badPtr();
-  abstract public Temp.Label badSub();
-  abstract public Assem.InstrList procEntryExit2(Assem.InstrList body);
-  abstract public Proc procEntryExit3(Assem.InstrList body);
-  abstract public String tempMap(Temp.Temp temp);
-  abstract public Assem.InstrList codegen(Tree.Stm stm);
-  abstract public Temp.TempList registers();
+public interface Frame {
+  public Temp FP();
+  public Temp RV();
+  public Tree.Exp externalCall(String func, Tree.ExpList args);
+  public Tree.Stm procEntryExit1(Tree.Stm body);
+  public String tempMap(Temp temp);
+  public Frame newFrame(Symbol name, BoolList formals);
+  public Access allocLocal(boolean escape);
+  public TempList registers();
+  public Label badPtr();
+  public Label badSub();
+  public int wordSize();
+  public Access allocGlobal(Label label, int size);
+  public Tree.Exp data(Label label, int size);
+  public Tree.Exp string(Label label, String str);
+  public Label name();
 }

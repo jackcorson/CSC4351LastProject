@@ -79,9 +79,58 @@ public class RegAlloc implements TempMap {
 }
 
 class AssemFlowGraph extends FlowGraph {
+  private HashMap<Node, TempList> defMap = new HashMap<>();
+  private HashMap<Node, TempList> useMap = new HashMap<>();
+  private HashMap<Node, Boolean> moveMap = new HashMap<>();
+  private HashMap<Node, TempList> liveOutMap = new HashMap<>();
+  private HashMap<Node, Assem.Instr> instrMap = new HashMap<>();
+
   public AssemFlowGraph(Assem.InstrList instrs) {
     // Build the flow graph from assembly instructions
-    // This would track def/use sets and control flow
+    Node prev = null;
+    for (Assem.InstrList l = instrs; l != null; l = l.tail) {
+      Node n = new Node();
+      addNode(n);
+      instrMap.put(n, l.head);
+      
+      if (l.head instanceof Assem.MOVE) {
+        Assem.MOVE m = (Assem.MOVE)l.head;
+        defMap.put(n, new TempList(m.dst, null));
+        useMap.put(n, new TempList(m.src, null));
+        moveMap.put(n, true);
+      } else if (l.head instanceof Assem.OPER) {
+        Assem.OPER o = (Assem.OPER)l.head;
+        defMap.put(n, o.dst);
+        useMap.put(n, o.src);
+        moveMap.put(n, false);
+      } else {
+        defMap.put(n, null);
+        useMap.put(n, null);
+        moveMap.put(n, false);
+      }
+      
+      // Add edge from previous instruction if not a jump
+      if (prev != null) {
+        prev.addEdge(n);
+      }
+      prev = n;
+    }
+  }
+
+  public TempList def(Node node) {
+    return defMap.get(node);
+  }
+
+  public TempList use(Node node) {
+    return useMap.get(node);
+  }
+
+  public boolean isMove(Node node) {
+    return moveMap.getOrDefault(node, false);
+  }
+
+  public TempList liveOut(Node node) {
+    return liveOutMap.get(node);
   }
 }
 

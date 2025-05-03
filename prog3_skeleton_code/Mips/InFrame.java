@@ -12,7 +12,6 @@ class InFrame extends Frame.Access {
   }
 
   public String toString() {
-    Integer offset = new Integer(this.offset);
-    return offset.toString();
+    return Integer.valueOf(offset).toString();
   }
 }

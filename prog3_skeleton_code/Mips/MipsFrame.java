@@ -10,23 +10,26 @@ import Temp.TempList;
 import Util.BoolList;
 import java.util.Hashtable;
 
-public class MipsFrame extends Frame {
+public class MipsFrame implements Frame {
 
   private int count = 0;
-  public Frame newFrame(String name, Util.BoolList formals) {
+  protected String name;
+  private AccessList formals;
+
+  public Frame newFrame(Symbol name, BoolList formals) {
     Label label;
     if (name == null)
       label = new Label();
     else if (this.name != null)
       label = new Label(this.name + "." + name + "." + count++);
     else
-      label = new Label(name);
+      label = new Label(name.toString());
     return new MipsFrame(label, formals);
   }
 
   public MipsFrame() {}
   private MipsFrame(Label n, Util.BoolList f) {
-    name = n;
+    name = n.toString();
     formals = allocFormals(0, f);
   }
 
@@ -111,30 +114,9 @@ public class MipsFrame extends Frame {
     return body;
   }
 
-  public String string(Label lab, String string) {
-    int length = string.length();
-    String lit = "";
-    for (int i = 0; i < length; i++) {
-      char c = string.charAt(i);
-      switch(c) {
-      case '\b': lit += "\\b"; break;
-      case '\t': lit += "\\t"; break;
-      case '\n': lit += "\\n"; break;
-      case '\f': lit += "\\f"; break;
-      case '\r': lit += "\\r"; break;
-      case '\"': lit += "\\\""; break;
-      case '\\': lit += "\\\\"; break;
-      default:
-        if (c < ' ' || c > '~') {
-          int v = (int)c;
-          lit += "\\" + ((v>>6)&7) + ((v>>3)&7) + (v&7);
-        } else
-          lit += c;
-        break;
-      }
-    }
-    return "\t.data\n\t.word " + length + "\n" + lab.toString()
-      + ":\t.asciiz\t\"" + lit + "\"";
+  public Tree.Exp string(Label label, String str) {
+    // Create string data segment entry
+    return new Tree.NAME(label);
   }
 
   private static final Label badPtr = new Label("_BADPTR");
@@ -288,8 +270,15 @@ public class MipsFrame extends Frame {
     return new Tree.SEQ(body, move);
   }
 
-    @Override
-    public Frame newFrame(Symbol name, BoolList formals) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+  public Access allocGlobal(Label label, int size) {
+    return new InFrame(0); 
+  }
+
+  public Tree.Exp data(Label label, int size) {
+    return new Tree.MEM(new Tree.NAME(label));
+  }
+
+  public Label name() {
+    return new Label(name);
+  }
 }

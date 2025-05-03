@@ -4098,17 +4098,11 @@ class CUtility
     Function: assert
     Description: Debugging routine.
     *******************************************************/
-  static void assert
-    (
-     boolean expr
-     )
-      {
-	if (DEBUG && false == expr)
-	  {
-	    System.out.println("Assertion Failed");
-	    throw new Error("Assertion Failed.");
-	  }
-      }
+  static void assertCondition(boolean expr) {
+    if (!expr) {
+      throw new Error("Assertion failed");
+    }
+  }
 
   /***************************************************************
     Function: doubleSize
