@@ -1,16 +1,14 @@
 package Semant;
-import Translate.Exp;
-import Types.Type;
-import java.util.Hashtable;
-import java.util.List;
-
+import Absyn.Dec;
 import FindEscape.FindEscape;
-import Translate.Level;
-import Translate.Access;
-import Translate.AccessList;
-import Translate.Translate;
+import Translate.Exp;
 import Translate.ExpList;
 import Translate.Frag;
+import Translate.Level;
+import Translate.Translate;
+import Translate.TranslateAccess;
+import Types.Type;
+import java.util.List;
 
 public class Semant {
   Env env;
@@ -356,22 +354,19 @@ public class Semant {
 //     return new ExpTy(null, VOID);
 //   }
 
-  // ExpTy transExp(Absyn.LetExp e) {
-  //   env.venv.beginScope();
-  //   env.tenv.beginScope();
-  //   ExpList head = new ExpList(null, null), prev = head;
-  //   // for (Absyn.DeclarationList d = e.decs; d != null; d = d.tail) {
-  //   //   prev = prev.tail = new ExpList(transDec(d.head), null);
-  //   // }
-  //   // int curr = 0;
-  //   while (Absyn.DeclarationList.list.get(0) != null) {
-      
-  //   }
-  //   ExpTy body = transExp(e.body);
-  //   env.venv.endScope();
-  //   env.tenv.endScope();
-  //   return new ExpTy(translate.LetExp(head.tail, body.exp), body.ty);
-  // }
+  ExpTy transExp(Absyn.LetExp e) {
+    env.venv.beginScope();
+    env.tenv.beginScope();
+    ExpList head = new ExpList(null, null), prev = head;
+
+    for (Dec d : e.decs) {
+        prev = prev.tail = new ExpList(transDec(d), null);
+    }
+    ExpTy body = transExp(e.body);
+    env.venv.endScope();
+    env.tenv.endScope();
+    return new ExpTy(translate.LetExp(head.tail, body.exp), body.ty);
+  }
 
   // ExpTy transExp(Absyn.ArrayExp e) {
   //   Types.NAME name = (Types.NAME)env.tenv.get(e.typ);
@@ -392,33 +387,33 @@ public class Semant {
   //   return new ExpTy(translate.Error(), VOID);
   // }
 
-  // Exp transDec(Absyn.Dec d) {
-  //   if (d instanceof Absyn.VarDec)
-  //     return transDec((Absyn.VarDec)d);
-  //   if (d instanceof Absyn.TypeDec)
-  //     return transDec((Absyn.TypeDec)d);
-  //   if (d instanceof Absyn.FunctionDec)
-  //     return transDec((Absyn.FunctionDec)d);
-  //   throw new Error("Semant.transDec");
-  // }
+  Exp transDec(Absyn.Dec d) {
+    if (d instanceof Absyn.VarDec)
+      return transDec((Absyn.VarDec)d);
+    // if (d instanceof Absyn.TypeDeclaration)
+    //   return transDec((Absyn.TypeDec)d);
+    // if (d instanceof Absyn.FunctionDec)
+    //   return transDec((Absyn.FunctionDec)d);
+    throw new Error("Semant.transDec");
+  }
 
-  // Exp transDec(Absyn.VarDec d) {
-  //   ExpTy init = transExp(d.init);
+  Exp transDec(Absyn.VarDeclaration d) {
+    ExpTy init = transExp(d.init);
   //   Type type;
-  //   if (d.typ == null) {
+  //   if (d.type == null) {
   //     if (init.ty.coerceTo(NIL))
 	// error(d.pos, "record type required");
   //     type = init.ty;
   //   } else {
-  //     type = transTy(d.typ);
+  //     type = transTy(d.type);
   //     if (!init.ty.coerceTo(type))
 	// error(d.pos, "assignment type mismatch");
   //   }
-  //   Access access = level.allocLocal(d.escape);
-  //   d.entry = new VarEntry(access, type);
-  //   env.venv.put(d.name, d.entry);
-  //   return translate.VarDec(access, init.exp);
-  // }
+    TranslateAccess access = level.allocLocal(d.escape);
+    // d.entry = new VarEntry(access, type);
+    // env.venv.put(d.name, d.entry);
+    return translate.VarDec(access, init.exp);
+  }
 
   // Exp transDec(Absyn.TypeDec d) {
   //   // 1st pass - handles the type headers
