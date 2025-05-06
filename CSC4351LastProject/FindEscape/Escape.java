@@ -1,6 +1,0 @@
-package FindEscape;
-
-abstract class Escape {
-  int depth;
-  abstract void setEscape();
-}
