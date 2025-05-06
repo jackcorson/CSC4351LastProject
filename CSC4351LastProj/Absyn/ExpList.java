@@ -1,9 +1,12 @@
 package Absyn;
 import java.util.ArrayList;
+import java.util.LinkedList;
+
 import Symbol.Symbol;
 
 public class ExpList extends Exp{
-    public ArrayList<Exp> exps;
+    //public ArrayList<Exp> exps; Had this at first which caused various errors throughout the code
+    public LinkedList<Exp> exps;
 
     public ExpList(int p) {
         pos=p;
